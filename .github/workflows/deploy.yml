@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
 
-permissions:  # 添加这个权限配置
+permissions:
   contents: write
 
 jobs:
@@ -32,3 +32,4 @@ jobs:
       with:
         personal_token: ${{ secrets.PERSONAL_TOKEN }}
         publish_dir: ./dist
+        publish_branch: gh-pages  # 明确指定分支

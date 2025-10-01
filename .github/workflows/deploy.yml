@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:  # 添加这个权限配置
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -15,7 +18,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '20.19.0'  # 明确指定兼容的版本
+        node-version: '20.19.0'
         cache: 'npm'
         
     - name: Install dependencies
@@ -27,5 +30,5 @@ jobs:
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}  # 保持这个不变
         publish_dir: ./dist

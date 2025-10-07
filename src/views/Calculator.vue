@@ -4,7 +4,7 @@
       <h1>可靠性工程工具</h1>
       <div class="tool-tabs">
         <button class="tab active">可靠性预计</button>
-        <button class="tab">可靠性分配</button>
+        <button class="tab" @click="$router.push('/results')">可靠性分配</button>
       </div>
     </header>
 
@@ -33,23 +33,48 @@
       <h2>元器件配置</h2>
       <div class="components-list">
         <div v-for="(comp, index) in selectedComponents" :key="index" class="component-item">
-          <select v-model="comp.type">
-            <option v-for="type in Object.keys(componentTypes)" :key="type" :value="type">
-              {{ type }}
-            </option>
-          </select>
-          <input v-model.number="comp.quantity" type="number" min="1">
-          <span>个</span>
-          <button @click="removeComponent(index)" class="remove-btn">删除</button>
+          <div class="component-row">
+            <div class="comp-field">
+              <label>类型:</label>
+              <select v-model="comp.type">
+                <option v-for="type in componentTypeOptions" :key="type" :value="type">
+                  {{ type }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="comp-field">
+              <label>数量:</label>
+              <input v-model.number="comp.quantity" type="number" min="1">
+            </div>
+            
+            <div class="comp-field">
+              <label>失效率:</label>
+              <input v-model.number="comp.failureRate" type="number" step="0.000001" min="0">
+              <span class="unit">/小时</span>
+            </div>
+            
+            <div class="comp-field">
+              <label>描述:</label>
+              <input v-model="comp.description" placeholder="组件描述">
+            </div>
+            
+            <button @click="removeComponent(index)" class="remove-btn">删除</button>
+          </div>
         </div>
       </div>
       <button @click="addComponent()" class="add-btn">+ 添加元器件</button>
     </div>
 
     <div class="results-section">
-      <button @click="calculateReliability" class="calculate-btn">计算可靠性</button>
+      <div class="action-buttons">
+        <button @click="calculateReliability" class="calculate-btn">计算可靠性</button>
+        <button @click="saveAndView" class="save-btn" :disabled="!calculationResults.hasResults">
+          保存并查看结果
+        </button>
+      </div>
       
-      <div v-if="calculationResults.systemReliability > 0" class="results">
+      <div v-if="calculationResults.hasResults" class="results">
         <h3>可靠性分析结果</h3>
         <div class="result-grid">
           <div class="result-item">
@@ -80,145 +105,41 @@
 <script setup>
 import { useReliabilityCalc } from '../composables/useReliabilityCalc'
 import ReliabilityChart from '../components/ReliabilityChart.vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const {
   systemName,
   missionTime,
   environmentFactor,
   environmentOptions,
-  componentTypes,
+  componentTypeOptions,
   selectedComponents,
   calculationResults,
   calculateReliability,
+  saveAnalysis,
   addComponent,
   removeComponent
 } = useReliabilityCalc()
+
+// 保存并跳转到结果页面
+const saveAndView = () => {
+  if (saveAnalysis()) {
+    alert('分析结果已保存！')
+    router.push('/results')
+  }
+}
 </script>
 
 <style scoped>
-.calculator {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px;
-}
+/* 之前的样式保持不变，只添加新样式 */
 
-.tool-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.tool-header h1 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.tool-tabs {
+.action-buttons {
   display: flex;
-  justify-content: center;
   gap: 1rem;
-}
-
-.tab {
-  padding: 10px 20px;
-  border: 2px solid #3498db;
-  background: white;
-  color: #3498db;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.tab.active {
-  background: #3498db;
-  color: white;
-}
-
-.system-params {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  justify-content: center;
   margin-bottom: 2rem;
-}
-
-.param-group {
-  display: flex;
-  align-items: center;
-  margin-bottom: 1rem;
-  gap: 10px;
-}
-
-.param-group label {
-  width: 100px;
-  font-weight: bold;
-}
-
-.param-group input, .param-group select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  flex: 1;
-}
-
-.components-section {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
-}
-
-.components-list {
-  margin-bottom: 1rem;
-}
-
-.component-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 1rem;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 5px;
-}
-
-.component-item select, .component-item input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.component-item select {
-  width: 150px;
-}
-
-.component-item input {
-  width: 80px;
-}
-
-.remove-btn {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.add-btn {
-  background: #27ae60;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.results-section {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .calculate-btn {
@@ -229,49 +150,88 @@ const {
   font-size: 1.1rem;
   border-radius: 25px;
   cursor: pointer;
-  display: block;
-  margin: 0 auto 2rem;
   transition: transform 0.3s;
 }
 
-.calculate-btn:hover {
+.save-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  font-size: 1.1rem;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+
+.save-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.calculate-btn:hover, .save-btn:hover:not(:disabled) {
   transform: translateY(-2px);
 }
 
-.results {
-  margin-top: 2rem;
-}
-
-.result-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.result-item {
-  background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-  color: white;
-  padding: 1.5rem;
+.component-item {
+  background: #f8f9fa;
+  padding: 1rem;
   border-radius: 8px;
-  text-align: center;
+  margin-bottom: 1rem;
+  border: 1px solid #e9ecef;
 }
 
-.result-item label {
-  display: block;
+.component-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr 2fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.comp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.comp-field label {
+  font-size: 0.8rem;
   font-weight: bold;
-  margin-bottom: 0.5rem;
+  color: #555;
 }
 
-.result-item span {
-  font-size: 1.2rem;
+.comp-field input, .comp-field select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 100%;
 }
 
-.tool-footer {
-  text-align: center;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-  color: #7f8c8d;
+.unit {
+  font-size: 0.8rem;
+  color: #666;
+  margin-left: 5px;
+}
+
+.remove-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  height: fit-content;
+}
+
+.add-btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 1rem;
 }
 </style>

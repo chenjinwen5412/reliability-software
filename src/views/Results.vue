@@ -21,13 +21,13 @@
       <div v-else class="analyses-list">
         <div v-for="analysis in analyses" :key="analysis.id" class="analysis-item">
           <div class="analysis-header">
-            <h3>{{ analysis.systemName }}</h3>
-            <button @click="deleteAnalysis(analysis.id)" class="delete-btn">删除</button>
+            <h3>{{ analysis.systemName || '未命名系统' }}</h3>
+            <button @click="handleDeleteAnalysis(analysis.id)" class="delete-btn">删除</button>
           </div>
           
           <div class="analysis-meta">
-            <span class="env-badge">环境: {{ analysis.environmentLabel }}</span>
-            <span class="time-badge">分析时间: {{ analysis.timestamp }}</span>
+            <span class="env-badge">环境: {{ analysis.environmentLabel || '未知' }}</span>
+            <span class="time-badge">分析时间: {{ analysis.timestamp || '未知时间' }}</span>
           </div>
 
           <div class="analysis-content">
@@ -36,11 +36,11 @@
               <div class="param-grid">
                 <div class="param-item">
                   <label>任务时间:</label>
-                  <span>{{ analysis.missionTime }} 小时</span>
+                  <span>{{ analysis.missionTime || 0 }} 小时</span>
                 </div>
                 <div class="param-item">
                   <label>环境因子:</label>
-                  <span>{{ analysis.environmentFactor }}</span>
+                  <span>{{ analysis.environmentFactor || 0 }}</span>
                 </div>
               </div>
             </div>
@@ -48,9 +48,9 @@
             <div class="components-section">
               <h4>元器件配置</h4>
               <div class="components-grid">
-                <div v-for="(comp, index) in analysis.components" :key="index" class="component-badge">
-                  {{ comp.type }} × {{ comp.quantity }}
-                  <small>(λ={{ comp.failureRate.toFixed(6) }}/h)</small>
+                <div v-for="(comp, index) in (analysis.components || [])" :key="index" class="component-badge">
+                  {{ comp.type || '未知类型' }} × {{ comp.quantity || 0 }}
+                  <small>(λ={{ (comp.failureRate || 0).toFixed(6) }}/h)</small>
                 </div>
               </div>
             </div>
@@ -60,15 +60,15 @@
               <div class="results-grid">
                 <div class="result-badge primary">
                   <label>系统可靠度</label>
-                  <span class="value">{{ (analysis.systemReliability * 100).toFixed(2) }}%</span>
+                  <span class="value">{{ ((analysis.systemReliability || 0) * 100).toFixed(2) }}%</span>
                 </div>
                 <div class="result-badge secondary">
                   <label>总失效率</label>
-                  <span class="value">{{ analysis.totalFailureRate.toFixed(8) }}/h</span>
+                  <span class="value">{{ (analysis.totalFailureRate || 0).toFixed(8) }}/h</span>
                 </div>
                 <div class="result-badge tertiary">
                   <label>MTBF</label>
-                  <span class="value">{{ analysis.mtbf.toFixed(2) }} h</span>
+                  <span class="value">{{ (analysis.mtbf || 0).toFixed(2) }} h</span>
                 </div>
               </div>
             </div>
@@ -90,17 +90,31 @@ import { useReliabilityCalc } from '../composables/useReliabilityCalc'
 const { getSavedAnalyses, deleteAnalysis } = useReliabilityCalc()
 const analyses = ref([])
 
-// 加载保存的分析结果
+// 安全的数据加载函数
 const loadAnalyses = () => {
-  analyses.value = getSavedAnalyses()
-  console.log('加载的分析结果:', analyses.value)
+  try {
+    const savedData = getSavedAnalyses()
+    console.log('加载的分析数据:', savedData)
+    
+    // 过滤掉无效数据
+    analyses.value = savedData.filter(analysis => 
+      analysis && 
+      analysis.id && 
+      analysis.systemName !== undefined
+    )
+    
+    console.log('过滤后的有效数据:', analyses.value)
+  } catch (error) {
+    console.error('加载分析结果失败:', error)
+    analyses.value = []
+  }
 }
 
 // 删除分析结果
 const handleDeleteAnalysis = (id) => {
   if (confirm('确定要删除这个分析结果吗？')) {
     if (deleteAnalysis(id)) {
-      loadAnalyses() // 重新加载列表
+      loadAnalyses()
       alert('删除成功！')
     } else {
       alert('删除失败！')
@@ -114,6 +128,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 保持之前的样式不变 */
 .analyses-container {
   max-width: 900px;
   margin: 0 auto;

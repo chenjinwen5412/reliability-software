@@ -1,48 +1,78 @@
 import { ref, computed } from 'vue'
 
 export function useReliabilityCalc() {
-  // 输入参数
-  const failureRate = ref(0.001) // 失效率
-  const missionTime = ref(100)   // 任务时间
-  const numComponents = ref(1)   // 组件数量
+  // 系统参数
+  const systemName = ref('电源控制系统')
+  const missionTime = ref(1000)
+  const environmentFactor = ref(2.0) // 默认地面固定
   
-  // 可靠性计算
-  const reliability = computed(() => {
-    const λ = failureRate.value
-    const t = missionTime.value
-    const n = numComponents.value
-    
-    // 简单指数分布可靠性计算
-    return Math.exp(-λ * t * n)
+  // 环境因子选项
+  const environmentOptions = [
+    { label: '实验室', value: 1.0 },
+    { label: '地面固定', value: 2.0 },
+    { label: '车载', value: 4.0 },
+    { label: '机载', value: 8.0 },
+    { label: '舰载', value: 10.0 }
+  ]
+  
+  // 元器件数据库（可扩展）
+  const componentTypes = {
+    '电阻': { baseFailureRate: 0.000001 },
+    '电容': { baseFailureRate: 0.000002 },
+    '集成电路': { baseFailureRate: 0.00001 },
+    '晶体管': { baseFailureRate: 0.000005 },
+    '连接器': { baseFailureRate: 0.000003 }
+  }
+  
+  // 用户选择的元器件
+  const selectedComponents = ref([
+    { type: '电阻', quantity: 10 },
+    { type: '集成电路', quantity: 2 }
+  ])
+  
+  // 计算总失效率
+  const totalFailureRate = computed(() => {
+    return selectedComponents.value.reduce((sum, comp) => {
+      const baseRate = componentTypes[comp.type].baseFailureRate
+      const adjustedRate = baseRate * environmentFactor.value
+      return sum + (adjustedRate * comp.quantity)
+    }, 0)
   })
   
-  // MTBF计算
+  // 系统可靠度
+  const systemReliability = computed(() => {
+    return Math.exp(-totalFailureRate.value * missionTime.value)
+  })
+  
+  // MTBF
   const mtbf = computed(() => {
-    return 1 / (failureRate.value * numComponents.value)
+    return 1 / totalFailureRate.value
   })
   
-  // 生成可靠性曲线数据
-  const generateCurveData = (timeRange = 500) => {
-    const data = []
-    const λ = failureRate.value
-    const n = numComponents.value
-    
-    for (let t = 0; t <= timeRange; t += 10) {
-      data.push({
-        time: t,
-        reliability: Math.exp(-λ * t * n)
-      })
-    }
-    
-    return data
+  // 添加新元器件
+  const addComponent = (type = '电阻') => {
+    selectedComponents.value.push({
+      type: type,
+      quantity: 1
+    })
+  }
+  
+  // 删除元器件
+  const removeComponent = (index) => {
+    selectedComponents.value.splice(index, 1)
   }
   
   return {
-    failureRate,
+    systemName,
     missionTime,
-    numComponents,
-    reliability,
+    environmentFactor,
+    environmentOptions,
+    componentTypes,
+    selectedComponents,
+    totalFailureRate,
+    systemReliability,
     mtbf,
-    generateCurveData
+    addComponent,
+    removeComponent
   }
 }

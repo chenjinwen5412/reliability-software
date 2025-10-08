@@ -20,14 +20,6 @@
         <span>小时</span>
       </div>
       <div class="param-group">
-        <label>环境因子:</label>
-        <select v-model="environmentFactor">
-          <option v-for="env in environmentOptions" :key="env.value" :value="env.value">
-            {{ env.label }} ({{ env.value }})
-          </option>
-        </select>
-      </div>
-      <div class="param-group">
         <label>工作温度:</label>
         <input v-model.number="workingTemperature" type="number" min="-100" max="200" placeholder="℃">
         <span>℃</span>
@@ -41,11 +33,7 @@
           <div class="component-row">
             <div class="comp-field">
               <label>类型:</label>
-              <select v-model="comp.type">
-                <option v-for="type in componentTypeOptions" :key="type" :value="type">
-                  {{ type }}
-                </option>
-              </select>
+              <input v-model="comp.type" placeholder="请输入类型">
             </div>
 
             <div class="comp-field">
@@ -257,5 +245,57 @@ const saveAndView = () => {
   font-size: 0.8rem;
   color: #666;
   pointer-events: none;
+}
+.tool-tabs {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin: 24px 0;
+}
+.tab {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  padding: 12px 36px;
+  font-size: 1.1rem;
+  border-radius: 25px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(102,126,234,0.15);
+  transition: background 0.3s, transform 0.2s;
+  font-weight: 500;
+}
+.tab.active {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #222;
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(67,233,123,0.15);
+}
+.tab:hover:not(.active) {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  color: #333;
+  transform: scale(1.04);
+}
+.calculator {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(102,126,234,0.12);
+  padding: 32px 24px;
+  max-width: 900px;
+  margin: 32px auto;
+}
+.tool-header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #667eea;
+  text-align: center;
+  margin-bottom: 0.5em;
+  letter-spacing: 2px;
+}
+.system-params h2,
+.components-section h2 {
+  font-size: 1.3rem;
+  color: #764ba2;
+  margin-bottom: 12px;
+  font-weight: 600;
 }
 </style>

@@ -42,23 +42,23 @@
                 </option>
               </select>
             </div>
-            
+
             <div class="comp-field">
               <label>数量:</label>
               <input v-model.number="comp.quantity" type="number" min="1">
             </div>
-            
+
             <div class="comp-field">
               <label>失效率:</label>
               <input v-model.number="comp.failureRate" type="number" step="0.000001" min="0">
               <span class="unit">/小时</span>
             </div>
-            
+
             <div class="comp-field">
               <label>描述:</label>
               <input v-model="comp.description" placeholder="组件描述">
             </div>
-            
+
             <button @click="removeComponent(index)" class="remove-btn">删除</button>
           </div>
         </div>
@@ -73,7 +73,7 @@
           保存并查看结果
         </button>
       </div>
-      
+
       <div v-if="calculationResults.hasResults" class="results">
         <h3>可靠性分析结果</h3>
         <div class="result-grid">

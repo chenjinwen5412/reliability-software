@@ -55,8 +55,10 @@
 
             <div class="comp-field">
               <label>失效率:</label>
-              <input v-model.number="comp.failureRate" type="number" step="0.000001" min="0">
-              <span class="unit">/小时</span>
+              <div class="input-with-unit">
+                <input v-model.number="comp.failureRate" type="number" step="0.000001" min="0" placeholder="失效率(/小时)">
+                <span class="unit-inside">/小时</span>
+              </div>
             </div>
 
             <div class="comp-field">
@@ -238,5 +240,22 @@ const saveAndView = () => {
   cursor: pointer;
   width: 100%;
   margin-top: 1rem;
+}
+.input-with-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-with-unit input {
+  padding-right: 50px;
+}
+.unit-inside {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  color: #666;
+  pointer-events: none;
 }
 </style>

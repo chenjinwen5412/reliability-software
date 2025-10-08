@@ -27,6 +27,11 @@
           </option>
         </select>
       </div>
+      <div class="param-group">
+        <label>工作温度:</label>
+        <input v-model.number="workingTemperature" type="number" min="-100" max="200" placeholder="℃">
+        <span>℃</span>
+      </div>
     </div>
 
     <div class="components-section">

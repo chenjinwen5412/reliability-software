@@ -5,7 +5,7 @@ export function useReliabilityCalc() {
   const systemName = ref('电源控制系统')
   const missionTime = ref(1000)
   const environmentFactor = ref(2.0)
-  
+  const workingTemperature = ref(25) // 默认工作温度 25℃
   // 环境因子选项
   const environmentOptions = [
     { label: '实验室', value: 1.0 },
@@ -187,6 +187,7 @@ export function useReliabilityCalc() {
     getSavedAnalyses,
     deleteAnalysis,
     addComponent,
-    removeComponent
+    removeComponent,
+    workingTemperature
   }
 }

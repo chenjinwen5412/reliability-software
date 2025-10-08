@@ -177,8 +177,6 @@ export function useReliabilityCalc() {
   return {
     systemName,
     missionTime,
-    environmentFactor,
-    environmentOptions,
     componentTypeOptions,
     selectedComponents,
     calculationResults,

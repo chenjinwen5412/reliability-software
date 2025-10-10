@@ -2,10 +2,6 @@
   <div class="results">
     <header class="tool-header">
       <h1>可靠性工程工具</h1>
-      <div class="tool-tabs">
-        <button class="tab" @click="$router.push('/calculator')">可靠性预计</button>
-        <button class="tab active">结果分析</button>
-      </div>
     </header>
 
     <div class="analyses-container">
@@ -25,10 +21,12 @@
             <button @click="handleDeleteAnalysis(analysis.id)" class="delete-btn">删除</button>
           </div>
           
+          <!-- 环境信息展示（已确保变量和样式匹配） -->
           <div class="analysis-meta">
-            <span class="env-badge">环境: {{ analysis.environmentLabel || '未知' }}</span>
+            <span class="env-badge">环境: {{ analysis.environmentName || '未命名环境' }}</span>
+            <span class="factor-badge">环境因子: {{ analysis.environmentFactor || 0 }}</span>
             <span class="time-badge">分析时间: {{ analysis.timestamp || '未知时间' }}</span>
-          </div>
+          </div>      
 
           <div class="analysis-content">
             <div class="params-section">
@@ -76,10 +74,6 @@
         </div>
       </div>
     </div>
-
-    <footer class="tool-footer">
-      可靠性工程工具 © 2025
-    </footer>
   </div>
 </template>
 
@@ -96,12 +90,18 @@ const loadAnalyses = () => {
     const savedData = getSavedAnalyses()
     console.log('加载的分析数据:', savedData)
     
-    // 过滤掉无效数据
+    // 过滤无效数据，同时兼容旧数据（若有）
     analyses.value = savedData.filter(analysis => 
       analysis && 
       analysis.id && 
       analysis.systemName !== undefined
-    )
+    ).map(analysis => {
+      // 为旧数据补充默认环境名称（避免显示异常）
+      if (!analysis.environmentName) {
+        analysis.environmentName = '未命名环境'
+      }
+      return analysis
+    })
     
     console.log('过滤后的有效数据:', analyses.value)
   } catch (error) {
@@ -128,7 +128,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 保持之前的样式不变 */
+/* 保持之前的样式，补充 factor-badge 样式并优化布局 */
 .analyses-container {
   max-width: 900px;
   margin: 0 auto;
@@ -189,20 +189,24 @@ onMounted(() => {
   cursor: pointer;
 }
 
+/* 关键修复：补充 factor-badge 样式，优化换行适配 */
 .analysis-meta {
   display: flex;
   gap: 1rem;
   padding: 1rem 1.5rem;
   background: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
+  flex-wrap: wrap; /* 小屏幕自动换行，避免内容溢出 */
 }
 
-.env-badge, .time-badge {
+/* 统一三个徽章的样式，确保显示一致 */
+.env-badge, .factor-badge, .time-badge {
   background: white;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.8rem;
   border: 1px solid #dee2e6;
+  white-space: nowrap; /* 防止单个徽章内文字换行 */
 }
 
 .analysis-content {

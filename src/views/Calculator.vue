@@ -3,112 +3,123 @@
     <header class="tool-header">
       <h1>可靠性工程工具</h1>
       <div class="tool-tabs">
-        <button class="tab active">可靠性预计</button>
-        <button class="tab" @click="$router.push('/results')">可靠性分配</button>
+        <button class="tab" :class="{active: showMain}" @click="showMain = true">基本可靠性</button>
+        <button class="tab" :class="{active: !showMain}" @click="showMain = false">系统可靠性</button>
       </div>
     </header>
 
-    <div class="system-params">
-      <h2>系统参数</h2>
-      <div class="param-group">
-        <label>系统名称:</label>
-        <input v-model="systemName" placeholder="例如：电源控制系统">
-      </div>
-      <div class="param-group">
-        <label>任务时间:</label>
-        <input v-model.number="missionTime" type="number" min="0">
-        <span>小时</span>
-      </div>
-      <div class="param-group">
-        <label>工作温度:</label>
-        <input v-model.number="workingTemperature" type="number" min="-100" max="200" placeholder="℃">
-        <span>℃</span>
-      </div>
-    </div>
-
-    <div class="components-section">
-      <h2>元器件配置</h2>
-      <div class="components-list">
-        <div v-for="(comp, index) in selectedComponents" :key="index" class="component-item">
-          <div class="component-row">
-            <div class="comp-field">
-              <label>类型:</label>
-              <input v-model="comp.type" placeholder="请输入类型">
-            </div>
-
-            <div class="comp-field">
-              <label>数量:</label>
-              <input v-model.number="comp.quantity" type="number" min="1">
-            </div>
-
-            <div class="comp-field">
-              <label>失效率:</label>
-              <div class="input-with-unit">
-                <input v-model.number="comp.failureRate" type="number" step="0.000001" min="0" placeholder="失效率(/小时)">
-                <span class="unit-inside">/小时</span>
+    <template v-if="showMain">
+      <div class="card-section">
+        <!-- 系统参数卡片 -->
+        <div class="card">
+          <div class="card-title">系统参数</div>
+          <div class="card-content">
+            <div class="param-grid">
+              <div class="param-item">
+                <label>系统名称：</label>
+                <input v-model="systemName" placeholder="请输入系统名称" />
+              </div>
+              <div class="param-item">
+                <label>任务时间：</label>
+                <div class="input-with-unit">
+                  <input v-model.number="missionTime" type="number" min="0" />
+                  <span class="unit">小时</span>
+                </div>
+              </div>
+              <div class="param-item">
+                <label>环境名称：</label>
+                <input
+                  v-model="environmentName"
+                  type="text"
+                  placeholder="例如：高温环境、潮湿环境等"
+                  required
+                >
+              </div>
+              <div class="param-item">
+                <label>环境因子：</label>
+                <input
+                  v-model.number="environmentFactor"
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  placeholder="请输入环境因子数值"
+                  required
+                >
               </div>
             </div>
+          </div>
+        </div>
 
-            <div class="comp-field">
-              <label>描述:</label>
-              <input v-model="comp.description" placeholder="组件描述">
+        <!-- 元器件配置卡片 -->
+        <div class="card">
+          <div class="card-title">元器件配置</div>
+          <div class="card-content">
+            <div v-for="(comp, index) in selectedComponents" :key="index" class="component-chip">
+              <span>{{ comp.type || '类型' }} × {{ comp.quantity || 1 }} (λ={{ comp.failureRate || 0 }}/h)</span>
+              <span class="chip-desc">{{ comp.description }}</span>
+              <button @click="removeComponent(index)" class="remove-btn">删除</button>
             </div>
-
-            <button @click="removeComponent(index)" class="remove-btn">删除</button>
-          </div>
-        </div>
-      </div>
-      <button @click="addComponent()" class="add-btn">+ 添加元器件</button>
-    </div>
-
-    <div class="results-section">
-      <div class="action-buttons">
-        <button @click="calculateReliability" class="calculate-btn">计算可靠性</button>
-        <button @click="saveAndView" class="save-btn" :disabled="!calculationResults.hasResults">
-          保存并查看结果
-        </button>
-      </div>
-
-      <div v-if="calculationResults.hasResults" class="results">
-        <h3>可靠性分析结果</h3>
-        <div class="result-grid">
-          <div class="result-item">
-            <label>系统总失效率:</label>
-            <span>{{ calculationResults.totalFailureRate.toFixed(8) }} failures/hour</span>
-          </div>
-          <div class="result-item">
-            <label>系统可靠度:</label>
-            <span>{{ (calculationResults.systemReliability * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="result-item">
-            <label>平均无故障时间:</label>
-            <span>{{ calculationResults.mtbf.toFixed(2) }} hours</span>
+            <button @click="addComponent()" class="add-btn">+ 添加元器件</button>
           </div>
         </div>
 
-        <!-- 可靠性曲线图表 -->
-        <ReliabilityChart :data="calculationResults.curveData" />
+        <!-- 可靠性结果卡片 -->
+        <div class="card">
+          <div class="card-title">可靠性结果</div>
+          <div class="card-content result-row">
+            <div class="result-box purple">
+              <div class="result-label">系统可靠度</div>
+              <div class="result-value">{{ calculationResults.hasResults ? (calculationResults.systemReliability * 100).toFixed(2) : '--' }}%</div>
+            </div>
+            <div class="result-box pink">
+              <div class="result-label">总失效率</div>
+              <div class="result-value">{{ calculationResults.hasResults ? calculationResults.totalFailureRate.toFixed(8) : '--' }}/h</div>
+            </div>
+            <div class="result-box blue">
+              <div class="result-label">MTBF</div>
+              <div class="result-value">{{ calculationResults.hasResults ? calculationResults.mtbf.toFixed(2) : '--' }} h</div>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button @click="calculateReliability" class="calculate-btn">计算可靠性</button>
+            <button @click="saveAndView" class="save-btn" :disabled="!calculationResults.hasResults">
+              保存并查看结果
+            </button>
+          </div>
+          <div v-if="calculationResults.hasResults" class="chart-box">
+            <ReliabilityChart :data="calculationResults.curveData" />
+          </div>
+        </div>
       </div>
-    </div>
+    </template>
 
-    <footer class="tool-footer">
-      可靠性工程工具 © 2025
-    </footer>
+    <template v-else>
+      <div class="blank-section">
+        <h2>系统可靠性分析</h2>
+        <div class="blank-content">
+          <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4c8.svg" alt="系统可靠性" style="width:64px;margin-bottom:16px;">
+          <p>请选择或配置系统参数后进行系统级可靠性分析。</p>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useReliabilityCalc } from '../composables/useReliabilityCalc'
 import ReliabilityChart from '../components/ReliabilityChart.vue'
 import { useRouter } from 'vue-router'
 
+const showMain = ref(true)
 const router = useRouter()
 
+// 从 composable 中获取所有需要的变量和方法
 const {
   systemName,
   missionTime,
+  environmentName,  // 确保导入环境名称
   environmentFactor,
-  environmentOptions,
   componentTypeOptions,
   selectedComponents,
   calculationResults,
@@ -118,8 +129,19 @@ const {
   removeComponent
 } = useReliabilityCalc()
 
-// 保存并跳转到结果页面
+// 保存并查看结果（添加输入验证）
 const saveAndView = () => {
+  // 验证环境信息是否已输入
+  if (!environmentName.value.trim()) {
+    alert('请输入环境名称')
+    return
+  }
+  
+  if (!environmentFactor.value || isNaN(environmentFactor.value) || environmentFactor.value <= 0) {
+    alert('请输入有效的环境因子（大于0的数字）')
+    return
+  }
+  
   if (saveAnalysis()) {
     alert('分析结果已保存！')
     router.push('/results')
@@ -128,15 +150,121 @@ const saveAndView = () => {
 </script>
 
 <style scoped>
-/* 之前的样式保持不变，只添加新样式 */
+/* 保持原有样式不变 */
+.card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(102,126,234,0.10);
+  padding: 24px 32px;
+  margin-bottom: 0;
+}
+.card-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #667eea;
+  margin-bottom: 18px;
+}
+.card-content {
+  margin-bottom: 12px;
+}
 
+/* 系统参数网格布局 */
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.param-item {
+  display: flex;
+  align-items: center;
+}
+
+.param-item label {
+  color: #764ba2;
+  font-weight: 600;
+  margin-right: 12px;
+  display: inline-block;
+  width: 90px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* 带单位的输入框容器 */
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.unit {
+  margin-left: 8px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.component-chip {
+  display: flex;
+  align-items: center;
+  background: #e3e8ff;
+  border-radius: 8px;
+  padding: 8px 16px;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  gap: 10px;
+}
+.chip-desc {
+  color: #888;
+  margin-left: 8px;
+  font-size: 0.95rem;
+}
+.result-row {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 18px;
+}
+.result-box {
+  flex: 1;
+  border-radius: 12px;
+  padding: 18px 0;
+  text-align: center;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 2px 12px rgba(102,126,234,0.08);
+}
+.result-box.purple {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.result-box.pink {
+  background: linear-gradient(135deg, #f797a7 0%, #f7b2e7 100%);
+}
+.result-box.blue {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #222;
+}
+.result-label {
+  font-size: 1rem;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+.result-value {
+  font-size: 2rem;
+  font-weight: bold;
+}
+.chart-box {
+  margin-top: 24px;
+}
 .action-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
   margin-bottom: 2rem;
 }
-
 .calculate-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -147,7 +275,6 @@ const saveAndView = () => {
   cursor: pointer;
   transition: transform 0.3s;
 }
-
 .save-btn {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
@@ -158,93 +285,51 @@ const saveAndView = () => {
   cursor: pointer;
   transition: transform 0.3s;
 }
-
 .save-btn:disabled {
   background: #cccccc;
   cursor: not-allowed;
   transform: none;
 }
-
 .calculate-btn:hover, .save-btn:hover:not(:disabled) {
   transform: translateY(-2px);
 }
-
-.component-item {
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #e9ecef;
-}
-
-.component-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr 2fr auto;
-  gap: 10px;
-  align-items: end;
-}
-
-.comp-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.comp-field label {
-  font-size: 0.8rem;
-  font-weight: bold;
-  color: #555;
-}
-
-.comp-field input, .comp-field select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  width: 100%;
-}
-
-.unit {
-  font-size: 0.8rem;
-  color: #666;
-  margin-left: 5px;
-}
-
 .remove-btn {
   background: #e74c3c;
   color: white;
   border: none;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  height: fit-content;
+  margin-left: 8px;
 }
-
 .add-btn {
   background: #27ae60;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 8px 18px;
   border-radius: 5px;
   cursor: pointer;
-  width: 100%;
-  margin-top: 1rem;
+  margin-top: 10px;
 }
-.input-with-unit {
-  position: relative;
-  display: flex;
-  align-items: center;
+.blank-section {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(102,126,234,0.12);
+  padding: 48px 24px;
+  max-width: 600px;
+  margin: 48px auto;
+  text-align: center;
 }
-.input-with-unit input {
-  padding-right: 50px;
+.blank-section h2 {
+  font-size: 1.5rem;
+  color: #764ba2;
+  margin-bottom: 24px;
+  font-weight: 600;
 }
-.unit-inside {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.8rem;
-  color: #666;
-  pointer-events: none;
+.blank-content p {
+  color: #888;
+  font-size: 1.1rem;
+  margin-top: 12px;
 }
 .tool-tabs {
   display: flex;
@@ -291,11 +376,33 @@ const saveAndView = () => {
   margin-bottom: 0.5em;
   letter-spacing: 2px;
 }
-.system-params h2,
-.components-section h2 {
-  font-size: 1.3rem;
-  color: #764ba2;
-  margin-bottom: 12px;
-  font-weight: 600;
+
+/* 输入框样式 */
+.param-item input,
+.param-item select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 1rem;
+  background: #f5f7fa;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(102,126,234,0.06);
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.param-item input:focus,
+.param-item select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px #667eea33;
+  background: #fff;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .param-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

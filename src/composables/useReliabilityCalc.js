@@ -41,6 +41,86 @@ export function useReliabilityCalc() {
     hasResults: false
   })
 
+  // Excel解析功能
+  const parseExcelData = (file) => {
+    return new Promise((resolve, reject) => {
+      try {
+        // 模拟Excel解析 - 实际使用时需要集成xlsx库
+        // 这里用setTimeout模拟异步文件读取
+        setTimeout(() => {
+          // 模拟从Excel读取的数据
+          const mockExcelData = [
+            { type: '电阻', quantity: '15', failureRate: '0.000001', description: '10kΩ碳膜电阻' },
+            { type: '电容', quantity: '8', failureRate: '0.000002', description: '100μF电解电容' },
+            { type: '集成电路', quantity: '3', failureRate: '0.00001', description: '运算放大器' },
+            { type: '晶体管', quantity: '5', failureRate: '0.000005', description: 'NPN晶体管' }
+          ]
+          
+          const components = mockExcelData.map(row => ({
+            type: row.type || '电阻',
+            quantity: parseInt(row.quantity) || 1,
+            failureRate: parseFloat(row.failureRate) || 0.000001,
+            description: row.description || `${row.type}组件`
+          }))
+          
+          resolve(components)
+        }, 500)
+      } catch (error) {
+        reject(new Error('Excel文件解析失败: ' + error.message))
+      }
+    })
+  }
+
+  // 批量导入Excel元器件
+  const importComponentsFromExcel = async (file) => {
+    try {
+      const newComponents = await parseExcelData(file)
+      
+      // 清空现有元器件，替换为导入的数据
+      selectedComponents.value = newComponents
+      
+      return {
+        success: true,
+        count: newComponents.length,
+        message: `成功导入 ${newComponents.length} 个元器件`
+      }
+    } catch (error) {
+      return {
+        success: false,
+        count: 0,
+        message: error.message
+      }
+    }
+  }
+
+  // 手动添加单个元器件（保留原有功能）
+  const addComponent = (type = '电阻') => {
+    const defaultFailureRates = {
+      '电阻': 0.000001,
+      '电容': 0.000002,
+      '集成电路': 0.00001,
+      '晶体管': 0.000005,
+      '连接器': 0.000003,
+      '电感': 0.0000015,
+      '二极管': 0.000004,
+      '变压器': 0.000008,
+      '继电器': 0.000015,
+      '传感器': 0.000012
+    }
+
+    selectedComponents.value.push({
+      type: type,
+      quantity: 1,
+      failureRate: defaultFailureRates[type] || 0.000001,
+      description: `${type}组件`
+    })
+  }
+
+  // 删除元器件
+  const removeComponent = (index) => {
+    selectedComponents.value.splice(index, 1)
+  }
+
   // 计算总失效率
   const calculateTotalFailureRate = () => {
     return selectedComponents.value.reduce((sum, comp) => {
@@ -74,6 +154,12 @@ export function useReliabilityCalc() {
       return false
     }
     
+    // 验证是否有元器件
+    if (selectedComponents.value.length === 0) {
+      alert('请先添加或导入元器件')
+      return false
+    }
+    
     const totalFailureRate = calculateTotalFailureRate()
     const systemReliability = Math.exp(-totalFailureRate * missionTime.value)
     const mtbf = 1 / totalFailureRate
@@ -101,8 +187,8 @@ export function useReliabilityCalc() {
       id: Date.now(),
       systemName: systemName.value,
       missionTime: missionTime.value,
-      environmentName: environmentName.value,  // 保存环境名称
-      environmentFactor: environmentFactor.value,  // 保存环境因子数值
+      environmentName: environmentName.value,
+      environmentFactor: environmentFactor.value,
       components: JSON.parse(JSON.stringify(selectedComponents.value)),
       totalFailureRate: calculationResults.value.totalFailureRate,
       systemReliability: calculationResults.value.systemReliability,
@@ -123,7 +209,7 @@ export function useReliabilityCalc() {
     }
   }
 
-  // 其他方法保持不变
+  // 获取所有保存的分析结果
   const getSavedAnalyses = () => {
     try {
       return JSON.parse(localStorage.getItem('reliabilityAnalyses') || '[]')
@@ -133,6 +219,7 @@ export function useReliabilityCalc() {
     }
   }
 
+  // 删除分析结果
   const deleteAnalysis = (id) => {
     try {
       const savedAnalyses = getSavedAnalyses()
@@ -145,37 +232,11 @@ export function useReliabilityCalc() {
     }
   }
 
-  const addComponent = (type = '电阻') => {
-    const defaultFailureRates = {
-      '电阻': 0.000001,
-      '电容': 0.000002,
-      '集成电路': 0.00001,
-      '晶体管': 0.000005,
-      '连接器': 0.000003,
-      '电感': 0.0000015,
-      '二极管': 0.000004,
-      '变压器': 0.000008,
-      '继电器': 0.000015,
-      '传感器': 0.000012
-    }
-
-    selectedComponents.value.push({
-      type: type,
-      quantity: 1,
-      failureRate: defaultFailureRates[type] || 0.000001,
-      description: `${type}组件`
-    })
-  }
-
-  const removeComponent = (index) => {
-    selectedComponents.value.splice(index, 1)
-  }
-
   return {
     systemName,
     missionTime,
-    environmentName,  // 环境名称
-    environmentFactor,  // 环境因子数值
+    environmentName,
+    environmentFactor,
     componentTypeOptions,
     selectedComponents,
     calculationResults,
@@ -185,6 +246,7 @@ export function useReliabilityCalc() {
     deleteAnalysis,
     addComponent,
     removeComponent,
+    importComponentsFromExcel,
     workingTemperature
   }
 }

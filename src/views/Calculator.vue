@@ -54,12 +54,78 @@
         <div class="card">
           <div class="card-title">元器件配置</div>
           <div class="card-content">
-            <div v-for="(comp, index) in selectedComponents" :key="index" class="component-chip">
-              <span>{{ comp.type || '类型' }} × {{ comp.quantity || 1 }} (λ={{ comp.failureRate || 0 }}/h)</span>
-              <span class="chip-desc">{{ comp.description }}</span>
-              <button @click="removeComponent(index)" class="remove-btn">删除</button>
+            <!-- Excel导入区域 -->
+            <div class="excel-import-section">
+              <div class="upload-area" @click="triggerFileInput" @drop="handleDrop" @dragover="handleDragOver">
+                <input 
+                  ref="fileInput"
+                  type="file" 
+                  accept=".xlsx,.xls,.csv" 
+                  @change="handleFileUpload"
+                  style="display: none"
+                >
+                <div class="upload-content">
+                  <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4c2.svg" alt="Excel" style="width: 48px; margin-bottom: 12px;">
+                  <p>点击或拖拽Excel文件到此区域</p>
+                  <small>支持 .xlsx, .xls, .csv 格式</small>
+                </div>
+              </div>
+              
+              <!-- Excel模板说明 -->
+              <div class="template-info">
+                <h4>Excel模板格式：</h4>
+                <table class="template-table">
+                  <thead>
+                    <tr>
+                      <th>类型</th>
+                      <th>数量</th>
+                      <th>失效率</th>
+                      <th>描述</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>电阻</td>
+                      <td>10</td>
+                      <td>0.000001</td>
+                      <td>10kΩ碳膜电阻</td>
+                    </tr>
+                    <tr>
+                      <td>集成电路</td>
+                      <td>2</td>
+                      <td>0.00001</td>
+                      <td>运算放大器</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <button @click="addComponent()" class="add-btn">+ 添加元器件</button>
+            
+            <!-- 手动添加元器件（保留原有功能） -->
+            <div class="manual-add-section">
+              <h4>手动添加元器件</h4>
+              <div class="add-controls">
+                <select v-model="newComponentType" class="type-select">
+                  <option v-for="type in componentTypeOptions" :key="type" :value="type">
+                    {{ type }}
+                  </option>
+                </select>
+                <button @click="addManualComponent" class="add-manual-btn">+ 添加</button>
+              </div>
+            </div>
+
+            <!-- 元器件列表展示 -->
+            <div v-if="selectedComponents.length > 0" class="components-display">
+              <h4>当前元器件 ({{ selectedComponents.length }}个)</h4>
+              <div class="components-list">
+                <div v-for="(comp, index) in selectedComponents" :key="index" class="component-chip">
+                  <span class="chip-main">{{ comp.type }} × {{ comp.quantity }}</span>
+                  <span class="chip-detail">λ={{ comp.failureRate }}/h</span>
+                  <span class="chip-desc">{{ comp.description }}</span>
+                  <button @click="removeComponent(index)" class="remove-btn">删除</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -113,12 +179,14 @@ import { useRouter } from 'vue-router'
 
 const showMain = ref(true)
 const router = useRouter()
+const fileInput = ref(null)
+const newComponentType = ref('电阻')
 
 // 从 composable 中获取所有需要的变量和方法
 const {
   systemName,
   missionTime,
-  environmentName,  // 确保导入环境名称
+  environmentName,
   environmentFactor,
   componentTypeOptions,
   selectedComponents,
@@ -126,10 +194,58 @@ const {
   calculateReliability,
   saveAnalysis,
   addComponent,
-  removeComponent
+  removeComponent,
+  importComponentsFromExcel
 } = useReliabilityCalc()
 
-// 保存并查看结果（添加输入验证）
+// 手动添加元器件
+const addManualComponent = () => {
+  addComponent(newComponentType.value)
+}
+
+// 文件上传相关功能
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  await processExcelFile(file)
+  // 清空文件输入，允许重复选择同一文件
+  event.target.value = ''
+}
+
+const handleDrop = (event) => {
+  event.preventDefault()
+  const file = event.dataTransfer.files[0]
+  if (file) {
+    processExcelFile(file)
+  }
+}
+
+const handleDragOver = (event) => {
+  event.preventDefault()
+}
+
+// 处理Excel文件
+const processExcelFile = async (file) => {
+  try {
+    const result = await importComponentsFromExcel(file)
+    
+    if (result.success) {
+      alert(result.message)
+    } else {
+      alert(`导入失败: ${result.message}`)
+    }
+    
+  } catch (error) {
+    alert('文件处理失败: ' + error.message)
+  }
+}
+
+// 保存并查看结果
 const saveAndView = () => {
   // 验证环境信息是否已输入
   if (!environmentName.value.trim()) {
@@ -150,7 +266,8 @@ const saveAndView = () => {
 </script>
 
 <style scoped>
-/* 保持原有样式不变 */
+/* 保持原有所有样式不变，只添加新样式 */
+
 .card-section {
   display: flex;
   flex-direction: column;
@@ -195,7 +312,6 @@ const saveAndView = () => {
   white-space: nowrap;
 }
 
-/* 带单位的输入框容器 */
 .input-with-unit {
   display: flex;
   align-items: center;
@@ -208,21 +324,139 @@ const saveAndView = () => {
   white-space: nowrap;
 }
 
+/* Excel导入区域样式 */
+.excel-import-section {
+  margin-bottom: 2rem;
+}
+
+.upload-area {
+  border: 2px dashed #667eea;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #f8f9ff;
+}
+
+.upload-area:hover {
+  background: #eef1ff;
+  border-color: #764ba2;
+}
+
+.upload-content p {
+  margin: 0.5rem 0;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.upload-content small {
+  color: #888;
+}
+
+.template-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.template-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.template-table th,
+.template-table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.template-table th {
+  background: #667eea;
+  color: white;
+}
+
+/* 手动添加区域 */
+.manual-add-section {
+  margin: 2rem 0;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.manual-add-section h4 {
+  margin-bottom: 1rem;
+  color: #667eea;
+}
+
+.add-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.type-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+}
+
+.add-manual-btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* 元器件列表展示 */
+.components-display {
+  margin-top: 2rem;
+}
+
+.components-display h4 {
+  margin-bottom: 1rem;
+  color: #667eea;
+}
+
+.components-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .component-chip {
   display: flex;
   align-items: center;
   background: #e3e8ff;
   border-radius: 8px;
   padding: 8px 16px;
-  margin-bottom: 10px;
-  font-size: 1rem;
-  gap: 10px;
-}
-.chip-desc {
-  color: #888;
-  margin-left: 8px;
+  gap: 12px;
   font-size: 0.95rem;
 }
+
+.chip-main {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.chip-detail {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.chip-desc {
+  color: #888;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+/* 结果展示区域 */
 .result-row {
   display: flex;
   gap: 32px;
@@ -300,37 +534,9 @@ const saveAndView = () => {
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  margin-left: 8px;
 }
-.add-btn {
-  background: #27ae60;
-  color: white;
-  border: none;
-  padding: 8px 18px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-top: 10px;
-}
-.blank-section {
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(102,126,234,0.12);
-  padding: 48px 24px;
-  max-width: 600px;
-  margin: 48px auto;
-  text-align: center;
-}
-.blank-section h2 {
-  font-size: 1.5rem;
-  color: #764ba2;
-  margin-bottom: 24px;
-  font-weight: 600;
-}
-.blank-content p {
-  color: #888;
-  font-size: 1.1rem;
-  margin-top: 12px;
-}
+
+/* 标签页样式 */
 .tool-tabs {
   display: flex;
   gap: 20px;
@@ -399,10 +605,42 @@ const saveAndView = () => {
   background: #fff;
 }
 
+/* 空白页面样式 */
+.blank-section {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(102,126,234,0.12);
+  padding: 48px 24px;
+  max-width: 600px;
+  margin: 48px auto;
+  text-align: center;
+}
+.blank-section h2 {
+  font-size: 1.5rem;
+  color: #764ba2;
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+.blank-content p {
+  color: #888;
+  font-size: 1.1rem;
+  margin-top: 12px;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .param-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .result-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    align-items: center;
   }
 }
 </style>

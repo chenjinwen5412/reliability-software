@@ -54,9 +54,28 @@
         <div class="card">
           <div class="card-title">元器件配置</div>
           <div class="card-content">
+            <!-- 模板下载 -->
+            <div class="template-generator">
+              <button @click="downloadTemplate" class="download-btn">
+                📥 下载Excel模板
+              </button>
+              <p class="template-tip">使用此模板填写数据可确保正确导入</p>
+            </div>
+            
             <!-- Excel导入区域 -->
             <div class="excel-import-section">
-              <div class="upload-area" @click="triggerFileInput" @drop="handleDrop" @dragover="handleDragOver">
+              <!-- 上传状态显示 -->
+              <div v-if="uploadStatus" class="upload-status" :class="uploadStatus.type">
+                {{ uploadStatus.message }}
+              </div>
+              
+              <div 
+                class="upload-area" 
+                @click="triggerFileInput" 
+                @drop="handleDrop" 
+                @dragover="handleDragOver"
+                @dragleave="handleDragLeave"
+              >
                 <input 
                   ref="fileInput"
                   type="file" 
@@ -117,6 +136,14 @@
             <!-- 元器件列表展示 -->
             <div v-if="selectedComponents.length > 0" class="components-display">
               <h4>当前元器件 ({{ selectedComponents.length }}个)</h4>
+              
+              <!-- 元器件统计 -->
+              <div class="components-summary">
+                <span v-for="(count, type) in componentSummary" :key="type" class="summary-badge">
+                  {{ type }}: {{ count }}
+                </span>
+              </div>
+              
               <div class="components-list">
                 <div v-for="(comp, index) in selectedComponents" :key="index" class="component-chip">
                   <span class="chip-main">{{ comp.type }} × {{ comp.quantity }}</span>
@@ -125,6 +152,13 @@
                   <button @click="removeComponent(index)" class="remove-btn">删除</button>
                 </div>
               </div>
+            </div>
+
+            <!-- 错误信息显示 -->
+            <div v-if="uploadError" class="error-details">
+              <h5>导入错误详情：</h5>
+              <pre>{{ uploadError }}</pre>
+              <button @click="uploadError = null" class="close-btn">关闭</button>
             </div>
           </div>
         </div>
@@ -172,7 +206,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useReliabilityCalc } from '../composables/useReliabilityCalc'
 import ReliabilityChart from '../components/ReliabilityChart.vue'
 import { useRouter } from 'vue-router'
@@ -181,6 +215,8 @@ const showMain = ref(true)
 const router = useRouter()
 const fileInput = ref(null)
 const newComponentType = ref('电阻')
+const uploadStatus = ref(null)
+const uploadError = ref(null)
 
 // 从 composable 中获取所有需要的变量和方法
 const {
@@ -198,9 +234,68 @@ const {
   importComponentsFromExcel
 } = useReliabilityCalc()
 
+// 元器件统计
+const componentSummary = computed(() => {
+  const summary = {}
+  selectedComponents.value.forEach(comp => {
+    summary[comp.type] = (summary[comp.type] || 0) + comp.quantity
+  })
+  return summary
+})
+
 // 手动添加元器件
 const addManualComponent = () => {
   addComponent(newComponentType.value)
+}
+
+// Excel模板下载
+const downloadTemplate = () => {
+  try {
+    // 检查xlsx库是否可用
+    if (typeof XLSX === 'undefined') {
+      alert('Excel库未加载，请刷新页面重试')
+      return
+    }
+
+    // 模板数据
+    const templateData = [
+      ['类型', '数量', '失效率', '描述'],
+      ['电阻', 15, 0.000001, '10kΩ碳膜电阻'],
+      ['电容', 8, 0.000002, '100μF电解电容'],
+      ['集成电路', 3, 0.00001, '运算放大器IC'],
+      ['晶体管', 5, 0.000005, 'NPN功率晶体管'],
+      ['连接器', 12, 0.000003, 'DB9串口连接器'],
+      ['电感', 6, 0.0000015, '10mH功率电感'],
+      ['二极管', 10, 0.000004, '1N4148开关二极管'],
+      ['变压器', 2, 0.000008, '220V转12V电源变压器'],
+      ['继电器', 4, 0.000015, '12V直流继电器'],
+      ['传感器', 3, 0.000012, '温度传感器DS18B20']
+    ]
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet(templateData)
+    
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 10 }, // 类型
+      { wch: 8 },  // 数量
+      { wch: 12 }, // 失效率
+      { wch: 25 }  // 描述
+    ]
+    
+    // 添加工作表
+    XLSX.utils.book_append_sheet(wb, ws, '元器件配置')
+    
+    // 生成并下载文件
+    XLSX.writeFile(wb, '可靠性分析_元器件模板.xlsx')
+    
+    alert('Excel模板下载完成！请使用此模板填写数据。')
+    
+  } catch (error) {
+    console.error('生成模板失败:', error)
+    alert('模板生成失败: ' + error.message)
+  }
 }
 
 // 文件上传相关功能
@@ -219,29 +314,115 @@ const handleFileUpload = async (event) => {
 
 const handleDrop = (event) => {
   event.preventDefault()
-  const file = event.dataTransfer.files[0]
-  if (file) {
+  
+  // 清除拖拽样式
+  event.currentTarget.style.background = '#f8f9ff'
+  event.currentTarget.style.borderColor = '#667eea'
+  
+  const files = event.dataTransfer.files
+  if (files.length > 0) {
+    const file = files[0]
+    console.log('拖拽文件:', file)
     processExcelFile(file)
   }
 }
 
 const handleDragOver = (event) => {
   event.preventDefault()
+  // 添加拖拽悬停效果
+  event.currentTarget.style.background = '#eef1ff'
+  event.currentTarget.style.borderColor = '#764ba2'
+}
+
+const handleDragLeave = (event) => {
+  event.preventDefault()
+  // 恢复原始样式
+  event.currentTarget.style.background = '#f8f9ff'
+  event.currentTarget.style.borderColor = '#667eea'
 }
 
 // 处理Excel文件
 const processExcelFile = async (file) => {
   try {
-    const result = await importComponentsFromExcel(file)
+    uploadError.value = null
     
-    if (result.success) {
-      alert(result.message)
-    } else {
-      alert(`导入失败: ${result.message}`)
+    // 显示上传状态
+    uploadStatus.value = {
+      type: 'loading',
+      message: `正在处理文件: ${file.name}...`
     }
     
+    console.log('Vue3环境文件处理:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    })
+    
+    // 添加文件类型验证
+    const allowedTypes = ['.xlsx', '.xls', '.csv']
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
+    
+    if (!allowedTypes.includes(fileExtension)) {
+      throw new Error(`不支持的文件格式: ${fileExtension}，请使用 ${allowedTypes.join(', ')} 格式`)
+    }
+    
+    // 文件大小限制（10MB）
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      throw new Error('文件大小超过限制（10MB）')
+    }
+    
+    if (file.size === 0) {
+      throw new Error('文件为空')
+    }
+    
+    const result = await importComponentsFromExcel(file)
+    
+    console.log('Vue3环境导入结果:', result)
+    
+    if (result.success) {
+      uploadStatus.value = {
+        type: 'success',
+        message: `成功导入 ${result.count} 个元器件`
+      }
+      
+      // 自动滚动到元器件列表
+      setTimeout(() => {
+        const componentsSection = document.querySelector('.components-display')
+        if (componentsSection) {
+          componentsSection.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 500)
+      
+    } else {
+      uploadStatus.value = {
+        type: 'error',
+        message: result.message
+      }
+    }
+    
+    // 5秒后清除状态消息
+    setTimeout(() => {
+      uploadStatus.value = null
+    }, 5000)
+    
   } catch (error) {
-    alert('文件处理失败: ' + error.message)
+    console.error('Vue3环境文件处理错误:', error)
+    uploadStatus.value = {
+      type: 'error',
+      message: `处理失败: ${error.message}`
+    }
+    
+    // 显示详细错误信息
+    uploadError.value = {
+      message: error.message,
+      stack: error.stack,
+      file: file.name
+    }
+    
+    setTimeout(() => {
+      uploadStatus.value = null
+    }, 5000)
   }
 }
 
@@ -258,6 +439,12 @@ const saveAndView = () => {
     return
   }
   
+  // 验证是否有元器件
+  if (selectedComponents.value.length === 0) {
+    alert('请先添加或导入元器件')
+    return
+  }
+  
   if (saveAnalysis()) {
     alert('分析结果已保存！')
     router.push('/results')
@@ -266,8 +453,6 @@ const saveAndView = () => {
 </script>
 
 <style scoped>
-/* 保持原有所有样式不变，只添加新样式 */
-
 .card-section {
   display: flex;
   flex-direction: column;
@@ -312,6 +497,7 @@ const saveAndView = () => {
   white-space: nowrap;
 }
 
+/* 带单位的输入框容器 */
 .input-with-unit {
   display: flex;
   align-items: center;
@@ -322,6 +508,35 @@ const saveAndView = () => {
   margin-left: 8px;
   color: #666;
   white-space: nowrap;
+}
+
+/* 模板下载样式 */
+.template-generator {
+  margin-bottom: 1.5rem;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.download-btn:hover {
+  background: linear-gradient(135deg, #218838 0%, #1e9e8a 100%);
+  transform: translateY(-2px);
+}
+
+.template-tip {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  text-align: center;
 }
 
 /* Excel导入区域样式 */
@@ -352,6 +567,33 @@ const saveAndView = () => {
 
 .upload-content small {
   color: #888;
+}
+
+/* 上传状态样式 */
+.upload-status {
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.upload-status.loading {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+}
+
+.upload-status.success {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.upload-status.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
 }
 
 .template-info {
@@ -403,6 +645,7 @@ const saveAndView = () => {
   border: 1px solid #ddd;
   border-radius: 6px;
   background: white;
+  flex: 1;
 }
 
 .add-manual-btn {
@@ -412,6 +655,11 @@ const saveAndView = () => {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.add-manual-btn:hover {
+  background: #219653;
 }
 
 /* 元器件列表展示 */
@@ -422,6 +670,21 @@ const saveAndView = () => {
 .components-display h4 {
   margin-bottom: 1rem;
   color: #667eea;
+}
+
+.components-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.summary-badge {
+  background: #667eea;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
 }
 
 .components-list {
@@ -443,17 +706,57 @@ const saveAndView = () => {
 .chip-main {
   font-weight: 600;
   color: #667eea;
+  min-width: 100px;
 }
 
 .chip-detail {
   color: #666;
   font-size: 0.9rem;
+  min-width: 120px;
 }
 
 .chip-desc {
   color: #888;
   font-size: 0.9rem;
   flex: 1;
+}
+
+/* 错误信息显示 */
+.error-details {
+  background: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.error-details h5 {
+  color: #c62828;
+  margin-bottom: 0.5rem;
+}
+
+.error-details pre {
+  background: white;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.close-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.close-btn:hover {
+  background: #d32f2f;
 }
 
 /* 结果展示区域 */
@@ -534,6 +837,11 @@ const saveAndView = () => {
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.remove-btn:hover {
+  background: #c0392b;
 }
 
 /* 标签页样式 */
@@ -639,6 +947,22 @@ const saveAndView = () => {
   }
   
   .action-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .component-chip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .add-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .tool-tabs {
     flex-direction: column;
     align-items: center;
   }
